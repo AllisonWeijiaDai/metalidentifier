@@ -1,0 +1,7 @@
+{
+  "name": "MetalLens - Band & Album Identifier",
+  "description": "Snap a photo of a metal band logo or album cover to instantly identify it, get band history, and find Spotify links.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
