@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Upload, X } from 'lucide-react';
-import { Button } from './Button';
+import { Button } from './Button.tsx';
 
 interface CameraCaptureProps {
   onCapture: (base64Image: string) => void;
@@ -20,11 +20,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         stream.getTracks().forEach(track => track.stop());
       }
       
+      // Removed ideal width/height to prevent OverconstrainedError on some mobile devices
       const constraints = {
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
         }
       };
       
@@ -36,7 +35,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
       setError(null);
     } catch (err) {
       console.error("Camera Error:", err);
-      setError("Unable to access camera. Please check permissions.");
+      setError("Unable to access camera. Ensure HTTPS is enabled and permissions are granted.");
     }
   }, [facingMode]); 
 
@@ -50,37 +49,72 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]); 
 
-  const takePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        
-        // Stop stream
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        onCapture(dataUrl);
+  // Helper to resize image to max 1024px to prevent memory crashes on mobile
+  const processAndCapture = (source: HTMLVideoElement | HTMLImageElement) => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const MAX_DIMENSION = 1024;
+    
+    let width = 0; 
+    let height = 0;
+    
+    if (source instanceof HTMLVideoElement) {
+       width = source.videoWidth;
+       height = source.videoHeight;
+    } else {
+       width = source.width;
+       height = source.height;
+    }
+
+    // Calculate new dimensions
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+      const ratio = width / height;
+      if (width > height) {
+        width = MAX_DIMENSION;
+        height = Math.round(MAX_DIMENSION / ratio);
+      } else {
+        height = MAX_DIMENSION;
+        width = Math.round(MAX_DIMENSION * ratio);
       }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Draw and compress
+      ctx.drawImage(source, 0, 0, width, height);
+      // Use 0.8 quality jpeg to reduce payload size significantly
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Stop stream if active
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      onCapture(dataUrl);
+    }
+  };
+
+  const takePhoto = () => {
+    if (videoRef.current) {
+      processAndCapture(videoRef.current);
     }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        onCapture(result);
+      const img = new Image();
+      img.onload = () => {
+        processAndCapture(img);
+        URL.revokeObjectURL(img.src);
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        setError("Failed to load image.");
+      };
+      img.src = URL.createObjectURL(file);
     }
   };
 
@@ -117,6 +151,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
           ref={videoRef} 
           autoPlay 
           playsInline 
+          muted
           className="absolute inset-0 w-full h-full object-cover grayscale contrast-125"
         />
         {/* Guide Overlay - Minimalist White Corners */}

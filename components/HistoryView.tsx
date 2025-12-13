@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Trash2, Search, Calendar, Disc, Users } from 'lucide-react';
-import { HistoryItem } from '../types';
-import { getHistory, deleteHistoryItem, clearHistory } from '../services/historyService';
-import { Button } from './Button';
+import { HistoryItem } from '../types.ts';
+import { getHistory, deleteHistoryItem, clearHistory } from '../services/historyService.ts';
+import { Button } from './Button.tsx';
 
 interface HistoryViewProps {
   onBack: () => void;
@@ -72,34 +72,34 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ onBack, onSelectItem }
             <div 
               key={item.id} 
               onClick={() => onSelectItem(item)}
-              className="group relative flex bg-black hover:bg-neutral-900 transition-colors cursor-pointer"
+              className="group relative flex bg-black hover:bg-neutral-900 transition-colors cursor-pointer h-24"
             >
-              {/* Thumbnail - Grayscale */}
-              <div className="w-24 h-auto flex-shrink-0 bg-neutral-900 overflow-hidden">
-                 <img src={item.sourceImage} className="w-full h-full object-cover grayscale opacity-50 group-hover:opacity-80 transition-opacity" />
+              {/* Thumbnail - Fixed Square Aspect Ratio to prevent height stretching on mobile */}
+              <div className="w-24 h-24 flex-shrink-0 bg-neutral-900 overflow-hidden relative">
+                 <img src={item.sourceImage} className="w-full h-full object-cover grayscale opacity-50 group-hover:opacity-80 transition-opacity absolute inset-0" />
               </div>
               
               {/* Info */}
-              <div className="flex-1 p-6 flex flex-col justify-center">
+              <div className="flex-1 p-4 flex flex-col justify-center min-w-0 pr-14">
                 <div className="flex justify-between items-start">
-                  <h3 className="font-typewriter text-md text-neutral-300 group-hover:text-white tracking-widest uppercase truncate pr-8 transition-colors">{item.identifiedName}</h3>
+                  <h3 className="font-typewriter text-sm text-neutral-300 group-hover:text-white tracking-widest uppercase truncate transition-colors w-full">{item.identifiedName}</h3>
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-[10px] text-neutral-600 font-mono uppercase tracking-wider">
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 flex-shrink-0">
                     {item.identifiedType === 'Album' ? <Disc className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                     {item.identifiedType}
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 flex-shrink-0">
                      <Calendar className="w-3 h-3" />
                      {new Date(item.timestamp).toLocaleDateString()}
                   </span>
                 </div>
               </div>
 
-              {/* Delete Action */}
+              {/* Delete Action - Easier hit target on mobile */}
               <button 
                 onClick={(e) => handleDelete(e, item.id)}
-                className="absolute top-4 right-4 p-2 text-neutral-800 hover:text-white transition-colors z-10"
+                className="absolute top-0 right-0 h-full w-12 flex items-center justify-center text-neutral-700 hover:text-white hover:bg-neutral-800/50 transition-colors z-10"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

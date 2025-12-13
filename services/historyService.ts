@@ -1,4 +1,4 @@
-import { HistoryItem, AnalysisResult } from '../types';
+import { HistoryItem, AnalysisResult } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'metallens_history_v1';

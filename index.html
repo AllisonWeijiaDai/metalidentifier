@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MetalLens</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // FORCE UNREGISTER SERVICE WORKERS
+      // This fixes the 404 error caused by stale PWA caches on mobile devices
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister().then(function(boolean) {
+              console.log('Service Worker unregistered:', boolean);
+            });
+          }
+        });
+      }
+    </script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Jacquard+24&family=Jura:wght@400;600&family=UnifrakturMaguntia&family=Special+Elite&family=Uncial+Antiqua&display=swap');
       
@@ -95,6 +108,7 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "lucide-react": "https://esm.sh/lucide-react@^0.560.0",

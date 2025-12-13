@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Save } from 'lucide-react';
-import { AnalysisResult } from '../types';
-import { Button } from './Button';
+import { AnalysisResult } from '../types.ts';
+import { Button } from './Button.tsx';
 
 interface ResultViewProps {
   result: AnalysisResult;
@@ -39,13 +39,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset, isSaved
           
           <h2 className="text-2xl md:text-3xl font-typewriter text-neutral-400 leading-none tracking-widest text-bloom">
             The void stared back. <br />
-            Your quest has failed,<br />
-            please give up.
+            You have failed.<br />
           </h2>
           
           <div className="pt-8">
             <Button variant="secondary" onClick={onReset} className="border-neutral-700 hover:border-neutral-400 text-neutral-500 hover:text-white">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Give Up
+              <ArrowLeft className="w-4 h-4 mr-2" /> ABORT
             </Button>
           </div>
         </div>

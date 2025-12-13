@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Loader2, History as HistoryIcon, Upload } from 'lucide-react';
-import { AppState, AnalysisResult, HistoryItem } from './types';
-import { identifyMetalImage } from './services/geminiService';
-import { saveToHistory } from './services/historyService';
-import { CameraCapture } from './components/CameraCapture';
-import { ResultView } from './components/ResultView';
-import { HistoryView } from './components/HistoryView';
-import { Button } from './components/Button';
+import { AppState, AnalysisResult, HistoryItem } from './types.ts';
+import { identifyMetalImage } from './services/geminiService.ts';
+import { saveToHistory } from './services/historyService.ts';
+import { checkQuotaAvailable, incrementQuota, getQuotaStatus, DAILY_LIMIT } from './services/quotaService.ts';
+import { CameraCapture } from './components/CameraCapture.tsx';
+import { ResultView } from './components/ResultView.tsx';
+import { HistoryView } from './components/HistoryView.tsx';
+import { Button } from './components/Button.tsx';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
@@ -19,8 +20,18 @@ const App: React.FC = () => {
   // State for fake progress bar and text animation
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingDots, setLoadingDots] = useState('');
+  
+  // Quota state for UI display
+  const [quotaRemaining, setQuotaRemaining] = useState(0);
+
+  // RATE LIMITING: Cooldown state
+  const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
+    // Initialize quota display
+    const { remaining } = getQuotaStatus();
+    setQuotaRemaining(remaining);
+
     const handleMove = (e: MouseEvent | TouchEvent) => {
       let clientX, clientY;
       if ('touches' in e) {
@@ -44,6 +55,14 @@ const App: React.FC = () => {
       window.removeEventListener('touchmove', handleMove);
     };
   }, []);
+
+  // Cooldown Timer Logic
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   // Fake progress simulation and text animation when analyzing
   useEffect(() => {
@@ -74,7 +93,31 @@ const App: React.FC = () => {
     }
   }, [appState]);
 
+  const handleActionStart = (action: () => void) => {
+    if (cooldown > 0) return; // Prevent action if cooling down
+
+    if (checkQuotaAvailable()) {
+      action();
+    } else {
+      setErrorMsg(`Daily ritual limit reached (${DAILY_LIMIT}/${DAILY_LIMIT}). Return tomorrow.`);
+      setAppState(AppState.ERROR);
+    }
+  };
+
   const handleCapture = async (base64Image: string) => {
+    // Double check just in case
+    if (!checkQuotaAvailable()) {
+       setErrorMsg(`Daily ritual limit reached (${DAILY_LIMIT}/${DAILY_LIMIT}). Return tomorrow.`);
+       setAppState(AppState.ERROR);
+       return;
+    }
+
+    // Deduct quota
+    incrementQuota();
+    // Update UI
+    const { remaining } = getQuotaStatus();
+    setQuotaRemaining(remaining);
+
     setAppState(AppState.ANALYZING);
     try {
       const result = await identifyMetalImage(base64Image);
@@ -89,7 +132,23 @@ const App: React.FC = () => {
       }, 300); 
 
     } catch (error: any) {
-      setErrorMsg(error.message || "Connection Lost.");
+      let msg = error.message || "Connection Lost.";
+      
+      // FALLBACK UI INTERCEPTOR:
+      // If the service layer didn't catch the technical jargon, we catch it here to preserve immersion.
+      const lowerMsg = msg.toLowerCase();
+      if (lowerMsg.includes("quota") || lowerMsg.includes("429") || lowerMsg.includes("limit") || lowerMsg.includes("exhausted")) {
+        msg = "The spirits are overwhelmed. We must wait for the ether to calm.";
+        // Trigger a longer cooldown for quota errors
+        setCooldown(10); 
+      } else if (lowerMsg.includes("network") || lowerMsg.includes("fetch")) {
+        msg = "Connection to the void severed.";
+        setCooldown(3); // Short cooldown for network errors
+      } else {
+        setCooldown(5); // Standard cooldown for other errors
+      }
+
+      setErrorMsg(msg);
       setAppState(AppState.ERROR);
     }
   };
@@ -100,6 +159,10 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
+    // Refresh quota display on return to home
+    const { remaining } = getQuotaStatus();
+    setQuotaRemaining(remaining);
+    
     setAppState(AppState.IDLE);
     setAnalysisResult(null);
     setErrorMsg('');
@@ -186,11 +249,11 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-blue-950/40 z-0 pointer-events-none mix-blend-color" />
       <div className="absolute inset-0 bg-black/30 z-0 pointer-events-none" />
 
-      {/* Main Container: justify-end to push content down, large bottom padding */}
-      <main className="flex-1 flex flex-col items-center justify-end pb-32 p-12 w-full max-w-lg relative z-20">
+      {/* Main Container: justify-center for vertical centering */}
+      <main className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 w-full max-w-lg relative z-20">
         
-        {/* Header */}
-        <div className="mb-12 mt-48 text-center space-y-6 w-full">
+        {/* Header - Added margins (mt-16/md:mt-32) to push content slightly below the mathematical center */}
+        <div className="mb-12 text-center space-y-6 w-full mt-16 md:mt-32">
           <div>
             <h1 className="text-5xl md:text-5xl font-unifrakturmaguntia tracking-[0.02em] text-neutral-300 mb-5 text-bloom leading-none drop-shadow-lg">
               May Darkness Guide Your Quest
@@ -203,11 +266,12 @@ const App: React.FC = () => {
         <div className="w-full space-y-6">
           <Button 
             variant="secondary"
-            onClick={() => setAppState(AppState.CAMERA)} 
+            onClick={() => handleActionStart(() => setAppState(AppState.CAMERA))} 
+            disabled={cooldown > 0}
             className="w-full h-16 bg-black/20 backdrop-blur-md border-neutral-600/50 text-neutral-300 hover:text-white hover:border-white hover:bg-neutral-900/60 transition-all duration-300"
-            icon={<Camera className="w-5 h-5" />}
+            icon={cooldown > 0 ? <Loader2 className="w-5 h-5 animate-spin"/> : <Camera className="w-5 h-5" />}
           >
-            Take Picture
+            {cooldown > 0 ? `Recharging... (${cooldown}s)` : "Take Picture"}
           </Button>
 
 
@@ -216,15 +280,26 @@ const App: React.FC = () => {
           <div className="relative w-full group">
              <Button 
                variant="secondary"
+               disabled={cooldown > 0}
                className="w-full h-16 bg-black/20 backdrop-blur-md border-neutral-600/50 text-neutral-300 group-hover:text-white group-hover:border-white group-hover:bg-neutral-900/60 transition-all duration-500"
-               icon={<Upload className="w-5 h-5" />}
+               icon={cooldown > 0 ? <Loader2 className="w-5 h-5 animate-spin"/> : <Upload className="w-5 h-5" />}
              >
-                Upload File
+                {cooldown > 0 ? `Recharging... (${cooldown}s)` : "Upload File"}
              </Button>
              <input 
                type="file" 
                accept="image/*" 
-               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+               disabled={cooldown > 0}
+               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+               onClick={(e) => {
+                  if (!checkQuotaAvailable() || cooldown > 0) {
+                    e.preventDefault();
+                    if (!checkQuotaAvailable()) {
+                        setErrorMsg(`Daily ritual limit reached (${DAILY_LIMIT}/${DAILY_LIMIT}). Return tomorrow.`);
+                        setAppState(AppState.ERROR);
+                    }
+                  }
+               }}
                onChange={(e) => {
                  const file = e.target.files?.[0];
                  if(file) {
@@ -265,16 +340,20 @@ const App: React.FC = () => {
             <Button 
               variant="secondary" 
               onClick={() => setAppState(AppState.IDLE)} 
+              disabled={cooldown > 0}
               className="w-full text-xs text-neutral-300 border-neutral-600 hover:border-white hover:text-white"
             >
-              Retry Connection
+              {cooldown > 0 ? `Recovering... ${cooldown}s` : "Retry Connection"}
             </Button>
           </div>
         </div>
       )}
 
-      <footer className="absolute bottom-4 w-full text-center relative z-20 pointer-events-none">
-        <p className="text-[9px] text-neutral-500 font-mono tracking-[0.5em] uppercase opacity-50">Gemini Vision Integration</p>
+      <footer className="absolute bottom-4 w-full text-center relative z-20 pointer-events-none space-y-1">
+        <p className="text-[10px] text-neutral-400 font-mono tracking-[0.3em] uppercase opacity-70">
+           Rituals Remaining: {quotaRemaining}/{DAILY_LIMIT}
+        </p>
+        <p className="text-[9px] text-neutral-600 font-mono tracking-[0.5em] uppercase opacity-40">Gemini Vision Integration</p>
       </footer>
     </div>
   );
