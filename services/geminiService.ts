@@ -12,7 +12,10 @@ export const identifyMetalImage = async (base64Image: string): Promise<AnalysisR
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // Remove header if present
+    // Extract mimeType from data URL header (e.g. "data:image/png;base64,...")
+    // Fall back to image/jpeg if no header is present
+    const mimeMatch = base64Image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
     const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
     const prompt = `
@@ -82,7 +85,7 @@ export const identifyMetalImage = async (base64Image: string): Promise<AnalysisR
         parts: [
           {
             inlineData: {
-              mimeType: 'image/jpeg',
+              mimeType: mimeType,
               data: cleanBase64,
             },
           },
