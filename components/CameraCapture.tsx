@@ -169,13 +169,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
            </div>
         </div>
 
-        {/* Upload button - top right corner */}
-        <label className="absolute top-6 right-6 z-50">
-          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-          <div className="bg-black/80 backdrop-blur-md p-3 border border-neutral-700 rounded-full cursor-pointer hover:border-white hover:bg-black transition-all">
-            <Upload className="w-5 h-5 text-white" />
-          </div>
-        </label>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
