@@ -20,7 +20,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         stream.getTracks().forEach(track => track.stop());
       }
       
-      // Removed ideal width/height to prevent OverconstrainedError on some mobile devices
       const constraints = {
         video: {
           facingMode: facingMode,
@@ -31,6 +30,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        // Explicit play() required for iOS Safari to render video
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn("Video play() failed:", playErr);
+        }
       }
       setError(null);
     } catch (err) {
@@ -144,9 +149,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
   }
 
   return (
-    <div className="relative h-full w-full bg-black flex flex-col">
-      {/* Viewport */}
-      <div className="relative flex-1 overflow-hidden bg-neutral-900">
+    <div className="fixed inset-0 bg-black flex flex-col z-50" style={{ height: '100dvh' }}>
+      {/* Camera Viewport - takes all remaining space */}
+      <div className="relative flex-1 overflow-hidden bg-neutral-900 min-h-0">
         <video 
           ref={videoRef} 
           autoPlay 
@@ -155,7 +160,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
           className="absolute inset-0 w-full h-full object-cover grayscale contrast-125"
         />
         {/* Guide Overlay - Minimalist White Corners */}
-        <div className="absolute inset-0 border-[0px] border-black/80 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
            <div className="w-64 h-64 relative">
              <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/80"></div>
              <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/80"></div>
@@ -163,12 +168,20 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/80"></div>
            </div>
         </div>
+
+        {/* Upload button - top right corner */}
+        <label className="absolute top-6 right-6 z-50">
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+          <div className="bg-black/80 backdrop-blur-md p-3 border border-neutral-700 rounded-full cursor-pointer hover:border-white hover:bg-black transition-all">
+            <Upload className="w-5 h-5 text-white" />
+          </div>
+        </label>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Controls - Solid Black bar with White controls */}
-      <div className="h-40 bg-black flex items-center justify-around px-8 relative z-50">
+      {/* Controls - pinned to bottom */}
+      <div className="flex-shrink-0 h-36 bg-black flex items-center justify-around px-8">
         <Button variant="ghost" onClick={onCancel} className="p-4 rounded-full text-neutral-500 hover:text-white hover:bg-neutral-900">
           <X className="w-8 h-8" />
         </Button>
@@ -184,14 +197,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
           <RefreshCw className="w-8 h-8" />
         </Button>
       </div>
-      
-      {/* Hidden File Input */}
-      <label className="absolute top-6 right-6 z-50">
-         <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-         <div className="bg-black/80 backdrop-blur-md p-3 border border-neutral-700 rounded-full cursor-pointer hover:border-white hover:bg-black transition-all">
-            <Upload className="w-5 h-5 text-white" />
-         </div>
-      </label>
     </div>
   );
 };
