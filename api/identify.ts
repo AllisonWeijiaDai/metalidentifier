@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { GroundingChunk } from "../types.js";
 
-const analyzeImage = async (base64Image: string) => {
+export const analyzeImage = async (base64Image: string) => {
   // Server-only: the key is read from the Vercel environment and never sent to the browser.
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -79,7 +79,8 @@ const analyzeImage = async (base64Image: string) => {
 
 
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      // Set GEMINI_MODEL in Vercel (or .env.local) to try another model without a code change.
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: {
         parts: [
           {

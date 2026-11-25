@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Accuracy test images and results stay local
+eval/images/*
+eval/results-*.csv
